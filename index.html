@@ -161,7 +161,7 @@
     <h2>⚖️ MANEJO DE DEMANDA ⚖️</h2>
     <p>Tienes una demanda activa que requiere tu atención.</p>
     <p>Opciones:</p>
-    <button id="pay-settlement-btn">PAGAR ACUERDO ($100)</button>
+    <button id="pay-settlement-btn">PAGAR ACUERDO ($20)</button> 
     <button id="counter-sue-btn">DEMANDAR POR DIFAMACIÓN ($50)</button> 
     <p id="lawsuit-outcome" style="margin-top: 15px; font-weight: bold; color: yellow;"></p>
 </div>
@@ -246,7 +246,7 @@
     
     // --- ESTADO INICIAL DEL JUEGO ---
     let game = {
-        dinero: 2000.00, // MODIFICADO: Inicia con $2000.00
+        dinero: 2000.00, // Dinero Inicial: $2000.00 (Mantenido)
         riesgo: 0,
         reputacion: 10,
         activos: 0,
@@ -292,10 +292,10 @@
     const COSTO_CURACION_BASE = 500;
     const PERDIDA_CORDURA_MUERTE = 20;
     
-    const COSTO_ACUERDO = 100;
-    const COSTO_CONTRA_DEMANDA = 50; // ¡Costo de contrademanda a $50!
+    const COSTO_ACUERDO = 20; // MODIFICADO: ¡Costo del Acuerdo Legal a $20!
+    const COSTO_CONTRA_DEMANDA = 50; 
     const DIA_DEMANDA_ALTA = 20;
-    const PROB_DEMANDA_ALTA = 70; // ¡Probabilidad alta a 70%!
+    const PROB_DEMANDA_ALTA = 70; 
 
     // --- Ítems de Cordura con precios reducidos (<= $80) ---
     const CORDURA_ITEMS = {
@@ -551,7 +551,7 @@
             return;
         }
 
-        if (!game.infiniteMoney) game.dinero -= COSTO_ACUERDO;
+        if (!game.infiniteMoney) game.dinero -= COSTO_ACUERDO; // Usa el nuevo COSTO_ACUERDO = 20
         
         game.demandas_activas -= 1;
         game.reputacion = Math.max(10, game.reputacion - 5);
@@ -796,7 +796,8 @@
         
         // --- CÁLCULO DE GASTOS FIJOS ---
         const mantenimiento = 20 + (game.activos * 5) + (game.sponsors * 2);
-        const costoLegal = game.demandas_activas * 75; 
+        // El costo legal ahora usa el nuevo COSTO_ACUERDO
+        const costoLegal = game.demandas_activas * COSTO_ACUERDO; 
         
         const gastosFamiliares = calcularGastoFamiliar(); 
         
