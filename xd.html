@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tralalelo's Tycoon - Gestión de Pizzería Final</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1c1c1c; 
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        h1 {
+            color: #ff4500;
+            text-align: center;
+            grid-column: 1 / 3;
+            margin-bottom: 20px;
+        }
+        
+        /* Paneles */
+        .panel {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        /* Panel de Estadísticas */
+        .stats-panel .stat-item {
+            padding: 10px 0;
+            border-bottom: 1px dashed #444;
+            font-size: 1.1em;
+        }
+        .stats-panel span {
+            float: right;
+            font-weight: bold;
+            color: #ffff00; 
+        }
+        .stats-panel #stat-lawsuits,
+        .stats-panel #stat-cordura { 
+             color: red; 
+             cursor: pointer; 
+             text-decoration: underline;
+        }
+
+        /* Log y Botones */
+        .log-panel { grid-column: 1 / 2; }
+        #log-feed { height: 200px; overflow-y: scroll; background-color: #111; padding: 10px; border-radius: 5px; font-size: 0.9em; margin-bottom: 15px; }
+        #next-day-btn { width: 100%; padding: 15px; font-size: 1.3em; background-color: #ff4500; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+        #next-day-btn:hover { background-color: #cc3700; }
+
+        /* Tienda */
+        .shop-panel { grid-column: 1 / 3; background-color: #333; }
+        .item-card { background-color: #444; padding: 15px; margin-bottom: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .item-card button { padding: 8px 15px; background-color: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        /* Estilos específicos para ítems nuevos */
+        .premium-item { border: 2px solid gold; background-color: #554400; } 
+        .trap-item { border: 2px solid red; background-color: #4f0000; } 
+        .personal-item { border: 1px solid #00ffcc; background-color: #1a4f4f; }
+
+        .persistent-card {
+            background-color: #5d4037; 
+            border: 2px solid #ff9800;
+            margin-bottom: 20px;
+        }
+        /* Estilo específico para las perrunas */
+        .perruna-card {
+            background-color: #4a148c; 
+            border: 3px solid #f06292;
+        }
+
+        /* Módulos */
+        .game-over-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            color: white;
+            z-index: 1000;
+            text-align: center;
+            padding-top: 20%;
+            border: 5px solid #ff4500;
+        }
+        #lawsuit-module,
+        #illness-module { 
+            display: none; 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: #333; 
+            border: 5px solid #ff4500; 
+            padding: 30px; 
+            z-index: 2000; 
+            text-align: center; 
+            box-shadow: 0 0 20px rgba(255, 69, 0, 0.5); 
+            width: 300px; 
+        }
+        
+        #cheat-module {
+            display: none; 
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #000;
+            border: 3px solid #00ff00;
+            padding: 20px;
+            z-index: 3000; 
+            text-align: center;
+            box-shadow: 0 0 15px #00ff00;
+            color: #00ff00;
+        }
+        #cheat-module input {
+            padding: 5px;
+            margin: 10px 0;
+            background: #111;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            text-align: center;
+        }
+        #cheat-module button {
+            background: #008000;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+
+        /* Finales */
+        .final-list li { color: #7f8c8d; }
+        .final-list li.unlocked { color: #2ecc71; font-weight: bold; }
+        
+    </style>
+</head>
+<body onload="setupGame()">
+
+<div class="game-over-screen" id="game-over-screen">
+    <h2 id="final-emoji"></h2>
+    <h3 id="final-message"></h3>
+    <p id="final-text"></p>
+    <button id="restart-btn" onclick="reiniciarPartida()">COMENZAR DE NUEVO</button>
+</div>
+
+<div id="lawsuit-module">
+    <h2>⚖️ MANEJO DE DEMANDA ⚖️</h2>
+    <p>Tienes una demanda activa que requiere tu atención.</p>
+    <p>Opciones:</p>
+    <button id="pay-settlement-btn">PAGAR ACUERDO ($100)</button>
+    <button id="counter-sue-btn">DEMANDAR POR DIFAMACIÓN ($50)</button> 
+    <p id="lawsuit-outcome" style="margin-top: 15px; font-weight: bold; color: yellow;"></p>
+</div>
+
+<div id="illness-module">
+    <h2>👨‍👩‍👧‍👦 CRISIS FAMILIAR 🤒</h2>
+    <p id="illness-message">Un miembro de tu familia se ha enfermado gravemente y necesita tratamiento inmediato.</p>
+    <p style="font-weight: bold;">Costo de la factura: $<span id="illness-cost">0</span></p>
+    <button id="pay-illness-btn">PAGAR FACTURA</button>
+    <button id="ignore-illness-btn" style="background-color: #880000;">IGNORAR RIESGO (¡PELIGRO!)</button>
+    <p id="illness-outcome" style="margin-top: 15px; font-weight: bold; color: yellow;"></p>
+</div>
+
+<div id="cheat-module">
+    <h2>Contraseña de Trucos</h2>
+    <input type="text" id="cheat-input" placeholder="Ingresa la contraseña o 20000...">
+    <button onclick="checkCheatCode()">ACTIVAR</button>
+    <p id="cheat-message"></p>
+    <button onclick="closeCheatModule()" style="background: #333; margin-top: 10px;">Cerrar</button>
+</div>
+
+
+<div class="container" id="game-container">
+    <h1>Tralalelo's Tycoon | Día <span id="stat-day-main">0</span> de 360</h1>
+    
+    <div class="log-panel panel">
+        <h2>Reporte de Noche y Día</h2>
+        <div id="log-feed"></div>
+        <button id="next-day-btn">Avanzar al Día 1</button>
+    </div>
+
+    <div class="stats-panel panel">
+        <h2>📊 Estadísticas</h2>
+        <div class="stat-item">Día Actual: <span id="stat-day">0</span></div>
+        <div class="stat-item">Dinero: <span id="stat-money">$2000.00</span></div>
+        <div class="stat-item">Reputación: <span id="stat-reputation">10%</span></div>
+        <div class="stat-item">Riesgo de Noche: <span id="stat-risk">0%</span></div>
+        <div class="stat-item" style="font-weight: bold; color: yellow;">Demandas Activas: <span id="stat-lawsuits">0</span></div>
+        <div class="stat-item">Activos Comprados: <span id="stat-assets">0</span></div>
+        <div class="stat-item">Patrocinios Activos: <span id="stat-sponsors">0</span></div>
+        <div class="stat-item">Competencia (Rivalidad): <span id="stat-rivalry">10%</span></div>
+        <div class="stat-item" style="font-weight: bold; color: #00ffcc;">Cordura: <span id="stat-cordura">100</span></div>
+    </div>
+    
+    <div class="panel" style="grid-column: 2 / 3;">
+        <h2>🏆 Finales Completados (Total: 11)</h2>
+        <ul id="final-list" class="final-list">
+            <li>Final Mediocre (Sobrevive 360, 0 Activos): <span id="final-mediocre">❌</span></li>
+            <li>Final Bancarrota: <span id="final-bankrupt">❌</span></li>
+            <li>Final Victoria (Sobrevive 360, >0 Activos): <span id="final-win">❌</span></li>
+            <li style="color: purple;">Final Clausura (Demanda Perdida): <span id="final-closure">❌</span></li>
+            <li style="color: gold;">Final Maestro (360 días, Rep >90, Dinero >$10k): <span id="final-master">❌</span></li>
+            <li style="color: orange;">Final Arriesgado (360 días, Riesgo >75, Activos >5): <span id="final-risk_taker">❌</span></li>
+            <li style="color: blue;">Final Solitario (360 días, Rivalidad <10, 0 Sponsors): <span id="final-recluse">❌</span></li>
+            <li style="color: red;">Final Derrota Rival (360 días, Rivalidad >85): <span id="final-rival_defeat">❌</span></li>
+            <li style="color: limegreen;">Final Pacifista (360 días, 0 Demandas/Accidentes): <span id="final-pacifista">❌</span></li>
+            <li style="color: #ff00ff;">Final Inculpado (Animatrónicos Desechados): <span id="final-inculpado">❌</span></li>
+            <li style="color: violet;">Final Hombre Morado (Cordura 0): <span id="final-purple_guy">❌</span></li>
+        </ul>
+        <button onclick="reiniciarFinales()" style="margin-top: 15px; background: #600; color: white; border: none; padding: 5px;">Reiniciar Progreso de Finales</button>
+    </div>
+
+    <div class="shop-panel panel">
+        <h2>🛒 Tienda (Fase de Compra - Cambia Diariamente)</h2>
+        
+        <h2>🧘 Gastos Personales (Cordura)</h2>
+        <div id="personal-shop-items"></div>
+        
+        <h2>🛡️ Seguridad y Control (Permanente)</h2>
+        <div id="persistent-shop-items"></div>
+        
+        <h2>Otros Artículos (Rotación Diaria)</h2>
+        <div id="shop-items"></div>
+        
+        <h2>🤝 Oportunidades de Patrocinio</h2>
+        <div id="sponsor-items"></div>
+    </div>
+</div>
+
+<script>
+    const MAX_DAYS = 360;
+    
+    // --- ESTADO INICIAL DEL JUEGO ---
+    let game = {
+        dinero: 2000.00, // MODIFICADO: Inicia con $2000.00
+        riesgo: 0,
+        reputacion: 10,
+        activos: 0,
+        sponsors: 0,
+        rivalry: 10,
+        demandas_activas: 0,
+        accidentes_historicos: 0, 
+        dia: 0,
+        gameOver: false,
+        activosComprados: 0,
+        cordura: 100,
+        illnessActive: false,
+        illnessCost: 0, 
+        
+        hasGuard: false,
+        hasPerrunas: false, 
+        infiniteMoney: false, 
+        hasPremiumAnimatronics: false, 
+        
+        premium_cooldown: 0, 
+        
+        finales: {
+            mediocre: false,
+            bankrupt: false,
+            win: false,
+            closure: false,
+            master: false,
+            risk_taker: false,
+            recluse: false,
+            rival_defeat: false,
+            pacifista: false,
+            inculpado: false, 
+            purple_guy: false,
+        },
+        itemsComprados: {} 
+    };
+
+    // --- PARÁMETROS DE GASTOS Y COSTOS ---
+    const GASTO_FAMILIAR_MIN = 30;
+    const GASTO_FAMILIAR_MAX = 100;
+    
+    const PROB_ENFERMEDAD = 20; 
+    const COSTO_CURACION_BASE = 500;
+    const PERDIDA_CORDURA_MUERTE = 20;
+    
+    const COSTO_ACUERDO = 100;
+    const COSTO_CONTRA_DEMANDA = 50; // ¡Costo de contrademanda a $50!
+    const DIA_DEMANDA_ALTA = 20;
+    const PROB_DEMANDA_ALTA = 70; // ¡Probabilidad alta a 70%!
+
+    // --- Ítems de Cordura con precios reducidos (<= $80) ---
+    const CORDURA_ITEMS = {
+        'Cena de Lujo (Cordura)': { costo: 80, cordura_add: 10, rotativo: true },
+        'Masaje Terapéutico (Cordura)': { costo: 65, cordura_add: 8, rotativo: true },
+        'Juegos de Mesa Familiar (Cordura)': { costo: 40, cordura_add: 5, rotativo: true },
+        'Noche de Cine (Cordura)': { costo: 55, cordura_add: 6, rotativo: true },
+    };
+
+    // --- CATÁLOGOS BASE ---
+    const CATALOGO_BASE = {
+        'Mesa Básica': { costo: 100, reputacion_add: 5, riesgo_add: 0, rotativo: true },
+        'Juego Arcade': { costo: 250, reputacion_add: 10, riesgo_add: 0, rotativo: true },
+        'Animatrónico Usado': { costo: 500, reputacion_add: 15, riesgo_add: 15, rotativo: true },
+        'Sistema de Ventilación': { costo: 150, reputacion_add: 0, riesgo_add: -5, rotativo: true },
+        'Sistema de Alarma Anti-Fallo': { costo: 300, reputacion_add: 5, riesgo_add: -10, rotativo: true },
+        'Iluminación LED': { costo: 80, reputacion_add: 3, riesgo_add: 0, rotativo: true },
+        'Contrato Legal Básico': { costo: 500, reputacion_add: 0, riesgo_add: -15, rotativo: true },
+        'Fuente de Pizzas': { costo: 750, reputacion_add: 20, riesgo_add: 5, rotativo: true },
+        'Animatrónico Roto (Riesgo Extremo)': { costo: 50, reputacion_add: 1, riesgo_add: 30, rotativo: true },
+        
+        'Animatrónicos Desechados': { costo: 2, reputacion_add: -10, riesgo_add: 50, rotativo: true, final_secreto: 'inculpado' },
+        
+        'Grupo de Animatrónicos Premium': { costo: 20000, reputacion_add: 50, riesgo_add: 0, rotativo: false, premium: true },
+    };
+    
+    const GUARDIA_SEGURIDAD = {
+        key: 'Guardia de Seguridad', 
+        costo: 600, 
+        reputacion_add_per_day: 5, 
+        riesgo_add: -10,
+        win_chance_add: 10 
+    };
+
+    const HERMANAS_PERRUNAS = {
+        key: 'Hermanas Perrunas',
+        costo: 1500,
+        legal_win_chance: 80, 
+        cordura_boost_amount: 100,
+        cordura_boost_days: 30
+    };
+
+    const SPONSORS_BASE = {
+        'Soda Pop Co.': { costo: 1000, reputacion_req: 40, dinero_add: 50, riesgo_add: 5, text: "Añade ingresos pasivos y riesgo." },
+        'Cables C.A. S.A.': { costo: 500, reputacion_req: 20, dinero_add: 30, riesgo_add: -10, text: "Bajo ingreso, reduce riesgo eléctrico." },
+        'App de Delivery Rápido': { costo: 2000, reputacion_req: 60, dinero_add: 150, riesgo_add: 15, text: "Grandes ingresos, pero mayor desgaste y riesgo." },
+        'Unicornio de Juguetes': { costo: 200, reputacion_req: 10, dinero_add: 10, riesgo_add: 0, text: "Patrocinio estable y pequeño." },
+    };
+
+    // --- Elementos DOM (No cambiar) ---
+    const D = document;
+    const stats = {
+        day: D.getElementById('stat-day'),
+        dayMain: D.getElementById('stat-day-main'),
+        money: D.getElementById('stat-money'),
+        reputation: D.getElementById('stat-reputation'),
+        risk: D.getElementById('stat-risk'),
+        lawsuits: D.getElementById('stat-lawsuits'),
+        assets: D.getElementById('stat-assets'),
+        sponsors: D.getElementById('stat-sponsors'),
+        rivalry: D.getElementById('stat-rivalry'),
+        cordura: D.getElementById('stat-cordura'),
+    };
+    const logFeed = D.getElementById('log-feed');
+    const shopItemsDiv = D.getElementById('shop-items');
+    const persistentShopDiv = D.getElementById('persistent-shop-items');
+    const sponsorItemsDiv = D.getElementById('sponsor-items');
+    const personalShopDiv = D.getElementById('personal-shop-items'); 
+    const nextDayBtn = D.getElementById('next-day-btn');
+    const gameOverScreen = D.getElementById('game-over-screen');
+    const lawsuitModule = D.getElementById('lawsuit-module');
+    const illnessModule = D.getElementById('illness-module');
+    const cheatModule = D.getElementById('cheat-module');
+    
+    // Actualización de botones modales para reflejar el nuevo costo
+    D.getElementById('counter-sue-btn').textContent = `DEMANDAR POR DIFAMACIÓN ($${COSTO_CONTRA_DEMANDA})`;
+    D.getElementById('pay-settlement-btn').textContent = `PAGAR ACUERDO ($${COSTO_ACUERDO})`;
+
+
+    // --- Funciones de Guardado y UI de Finales ---
+    
+    function loadFinals() {
+        const savedFinals = localStorage.getItem('tralaleloFinals');
+        if (savedFinals) {
+            try {
+                const loadedFinals = JSON.parse(savedFinals);
+                Object.keys(game.finales).forEach(key => {
+                    if (loadedFinals[key] !== undefined) {
+                        game.finales[key] = loadedFinals[key];
+                    }
+                });
+            } catch (e) {
+                console.error("Error al cargar finales de localStorage:", e);
+            }
+        }
+        updateFinalsUI();
+    }
+
+    function updateFinalsUI() {
+        Object.keys(game.finales).forEach(key => {
+            const element = D.getElementById(`final-${key}`);
+            if (element) {
+                element.textContent = game.finales[key] ? '✅' : '❌';
+            }
+        });
+    }
+
+    function saveFinal(finalKey) {
+        if (!game.finales[finalKey]) {
+            game.finales[finalKey] = true;
+            localStorage.setItem('tralaleloFinals', JSON.stringify(game.finales));
+            updateFinalsUI(); 
+        }
+    }
+    
+    function reiniciarFinales() {
+        if (confirm("¿Estás seguro que quieres borrar todo tu progreso de finales completados?")) {
+            localStorage.removeItem('tralaleloFinals');
+            Object.keys(game.finales).forEach(key => game.finales[key] = false);
+            updateFinalsUI();
+            window.location.reload(); 
+        }
+    }
+
+    // --- Lógica del Modo Infinito ---
+
+    function checkInfiniteMode() {
+        if (game.finales.mediocre && game.finales.win) {
+            game.infiniteMoney = true;
+            addLog("MODO INFINITO DESBLOQUEADO: ¡Dinero Infinito Activo!", 'alert-success');
+        }
+    }
+
+    // --- Funciones de Utilidad del Juego ---
+
+    function updateStats() {
+        stats.day.textContent = game.dia;
+        stats.dayMain.textContent = game.dia;
+        
+        if (game.infiniteMoney) {
+            stats.money.textContent = `∞ (Infinito)`;
+            stats.money.style.color = '#00ff00';
+            game.dinero = 99999999; 
+        } else {
+            stats.money.textContent = `$${game.dinero.toFixed(2)}`;
+            stats.money.style.color = '#ffff00';
+        }
+
+        stats.reputation.textContent = `${game.reputacion}%`;
+        stats.risk.textContent = `${game.riesgo}%`;
+        stats.lawsuits.textContent = `${game.demandas_activas}`; 
+        stats.assets.textContent = game.activos;
+        stats.sponsors.textContent = game.sponsors;
+        stats.rivalry.textContent = `${game.rivalry}%`;
+        
+        stats.cordura.textContent = `${game.cordura}`; 
+
+        stats.risk.style.color = game.riesgo > 50 ? '#ff0000' : '#ffff00';
+        stats.reputation.style.color = game.reputacion < 30 ? '#ff0000' : '#00ff00';
+        stats.cordura.style.color = game.cordura < 30 ? '#ff0000' : '#00ffcc';
+
+        stats.lawsuits.onclick = game.demandas_activas > 0 && !game.illnessActive ? openLawsuitModule : null; 
+        stats.cordura.onclick = game.illnessActive ? openIllnessModule : null; 
+    }
+
+    function addLog(message, type = '') {
+        const p = D.createElement('p');
+        p.className = type;
+        p.textContent = `[D${game.dia}] ${message}`;
+        logFeed.prepend(p);
+    }
+    
+    function reiniciarPartida() {
+        window.location.reload(); 
+    }
+    
+    function adjustCordura(amount, reason) {
+        if (game.infiniteMoney) return; 
+        
+        // La cordura máxima es 100
+        game.cordura = Math.min(100, Math.max(0, game.cordura + amount));
+        
+        if (amount < 0) {
+            addLog(`CORDURA: Perdiste ${Math.abs(amount)} por ${reason}. Actual: ${game.cordura}`, 'alert-error');
+        } else {
+            addLog(`CORDURA: Ganaste ${amount} por ${reason}. Actual: ${game.cordura}`, 'alert-success');
+        }
+        
+        updateStats(); 
+        checkFinal(); 
+    }
+
+
+    // --- Lógica de Contraseña Secreta (Tecla H) ---
+    
+    function openCheatModule() {
+        if (!game.gameOver) {
+            cheatModule.style.display = 'block';
+            D.getElementById('cheat-input').value = '';
+            D.getElementById('cheat-message').textContent = '';
+        }
+    }
+
+    function closeCheatModule() {
+        cheatModule.style.display = 'none';
+    }
+
+    function checkCheatCode() {
+        const input = D.getElementById('cheat-input').value.toLowerCase();
+        const messageElement = D.getElementById('cheat-message');
+
+        if (input === 'elpepe') {
+            game.infiniteMoney = true;
+            messageElement.textContent = "✅ ¡Contraseña Aceptada! Modo Infinito Activado.";
+            messageElement.style.color = '#00ff00';
+            addLog("TRUCO: Dinero infinito activado vía contraseña 'elpepe'.", 'alert-demand'); 
+            updateStats();
+            closeCheatModule(); 
+        
+        } else if (input === '20000') {
+            if (game.infiniteMoney) {
+                 messageElement.textContent = "❌ Ya estás en modo infinito.";
+                 messageElement.style.color = '#ff0000';
+                 return;
+            }
+            game.dinero += 20000;
+            messageElement.textContent = `✅ ¡Truco Aceptado! Se han añadido $20,000.00.`;
+            messageElement.style.color = '#00ff00';
+            addLog("TRUCO: ¡$20,000 añadidos al balance!", 'alert-success'); 
+            updateStats();
+            closeCheatModule(); 
+        } else {
+            messageElement.textContent = "❌ Contraseña incorrecta. Inténtalo de nuevo.";
+            messageElement.style.color = '#ff0000';
+        }
+    }
+
+
+    // --- Módulos Interactivos ---
+
+    function openLawsuitModule() {
+        if (game.demandas_activas > 0 && !game.gameOver) {
+            lawsuitModule.style.display = 'block';
+            D.getElementById('lawsuit-outcome').textContent = '';
+            nextDayBtn.disabled = true;
+        }
+    }
+    
+    D.getElementById('pay-settlement-btn').onclick = function() {
+        
+        if (!game.infiniteMoney && game.dinero < COSTO_ACUERDO) {
+            D.getElementById('lawsuit-outcome').textContent = `❌ No tienes $${COSTO_ACUERDO} para pagar el acuerdo.`;
+            return;
+        }
+
+        if (!game.infiniteMoney) game.dinero -= COSTO_ACUERDO;
+        
+        game.demandas_activas -= 1;
+        game.reputacion = Math.max(10, game.reputacion - 5);
+        D.getElementById('lawsuit-outcome').textContent = `✅ Pagaste $${COSTO_ACUERDO}. Demanda resuelta. Reputación afectada.`;
+        addLog(`JURÍDICO: Pagado acuerdo de $${COSTO_ACUERDO}. Demanda resuelta.`, 'alert-warning');
+        
+        lawsuitModule.style.display = 'none';
+        nextDayBtn.disabled = false; 
+        updateStats();
+        checkFinal();
+    };
+
+    D.getElementById('counter-sue-btn').onclick = function() {
+        
+        if (!game.infiniteMoney && game.dinero < COSTO_CONTRA_DEMANDA) {
+            D.getElementById('lawsuit-outcome').textContent = `❌ Necesitas $${COSTO_CONTRA_DEMANDA} para la contrademanda.`;
+            return;
+        }
+
+        if (!game.infiniteMoney) game.dinero -= COSTO_CONTRA_DEMANDA;
+        
+        let winChance;
+        
+        if (game.hasPerrunas) {
+            winChance = HERMANAS_PERRUNAS.legal_win_chance; 
+            addLog(`BONUS: ¡Hermanas Perrunas activas! Tienes ${winChance}% de chance de ganar.`, 'alert-success');
+        } else {
+            winChance = Math.max(5, (game.reputacion * 0.8) - (game.accidentes_historicos * 5)); 
+            
+            if (game.hasGuard) {
+                winChance += GUARDIA_SEGURIDAD.win_chance_add;
+                addLog(`BONUS: Guardia de seguridad aumentó la posibilidad de ganar la demanda.`, 'alert-warning');
+            }
+        }
+        
+        if (Math.random() * 100 < winChance) {
+            game.demandas_activas -= 1;
+            game.dinero += 300; 
+            game.reputacion = Math.min(100, game.reputacion + 15);
+            D.getElementById('lawsuit-outcome').textContent = `🎉 ¡GANASTE! Recibes $300 y +15% de Reputación.`;
+            addLog(`JURÍDICO: ¡Victoria! Ganaste $300 en contrademanda.`, 'alert-success');
+        } else {
+            D.getElementById('lawsuit-outcome').textContent = `❌ PERDISTE la contrademanda. La corte CLASURÓ tu local.`;
+            lawsuitModule.style.display = 'none';
+            mostrarFinal('😭', '¡LOCAL CLAUSURADO!', 'closure');
+        }
+        lawsuitModule.style.display = 'none';
+        nextDayBtn.disabled = false;
+        updateStats();
+        checkFinal();
+    };
+    
+    
+    function openIllnessModule() {
+        if (game.illnessActive && !game.gameOver) {
+            D.getElementById('illness-cost').textContent = game.illnessCost.toFixed(2);
+            illnessModule.style.display = 'block';
+            nextDayBtn.disabled = true;
+        }
+    }
+    
+    D.getElementById('pay-illness-btn').onclick = function() {
+        const costo = game.illnessCost;
+        
+        if (!game.infiniteMoney && game.dinero < costo) {
+            D.getElementById('illness-outcome').textContent = `❌ No tienes $${costo.toFixed(2)} para pagar la factura.`;
+            return;
+        }
+        
+        if (!game.infiniteMoney) game.dinero -= costo;
+        
+        game.illnessActive = false;
+        game.illnessCost = 0;
+        D.getElementById('illness-outcome').textContent = `✅ Factura de $${costo.toFixed(2)} pagada. ¡Familiar se recupera!`;
+        adjustCordura(5, "Familiar curado a tiempo");
+        
+        illnessModule.style.display = 'none';
+        nextDayBtn.disabled = false;
+        updateStats();
+        checkFinal();
+    };
+    
+    D.getElementById('ignore-illness-btn').onclick = function() {
+        D.getElementById('illness-outcome').textContent = `❌ Decidiste ignorar la factura. El familiar...`;
+        
+        game.illnessActive = false; 
+        game.illnessCost = 0;
+        
+        // Pérdida de cordura por muerte familiar (20)
+        adjustCordura(-PERDIDA_CORDURA_MUERTE, "Muerte de un familiar querido");
+        
+        illnessModule.style.display = 'none';
+        nextDayBtn.disabled = false;
+        updateStats();
+        checkFinal(); 
+    };
+
+
+    // --- FASES DE ACCIÓN ---
+
+    function faseCompra(itemKey, type) {
+        
+        let list = type === 'shop' ? CATALOGO_BASE : type === 'sponsor' ? SPONSORS_BASE : type === 'personal' ? CORDURA_ITEMS : null;
+        const data = type === 'guard' ? GUARDIA_SEGURIDAD : type === 'perrunas' ? HERMANAS_PERRUNAS : list[itemKey];
+
+        const costo = data.costo;
+        
+        if (!game.infiniteMoney && game.dinero < costo) {
+            addLog(`ERROR: Dinero insuficiente ($${costo}) para ${itemKey}.`, 'alert-error');
+            return;
+        }
+        
+        // Lógica de Compra:
+        if (type === 'guard') {
+            if (!game.infiniteMoney) game.dinero -= costo;
+            game.hasGuard = true;
+            game.riesgo = Math.max(0, game.riesgo + data.riesgo_add);
+            game.activos += 1;
+            game.activosComprados += 1;
+            addLog(`COMPRA: ¡Contrataste un Guardia de Seguridad!`, 'alert-success');
+        
+        } else if (type === 'perrunas') {
+            if (!game.infiniteMoney) game.dinero -= costo;
+            game.hasPerrunas = true;
+            game.activos += 1;
+            game.activosComprados += 1;
+            
+            // Da la primera inyección de cordura
+            adjustCordura(data.cordura_boost_amount, "Hermanas Perrunas (Compra Inicial)");
+            addLog(`COMPRA ÉPICA: ¡Adquiriste las Hermanas Perrunas! Cordura +${data.cordura_boost_amount}.`, 'alert-success');
+
+        } else if (data.final_secreto === 'inculpado') {
+            if (!game.infiniteMoney) game.dinero -= costo;
+            addLog(`¡COMPRA DE RIESGO! Adquiriste ${itemKey}. ¡Debes esconderlos rápido!`, 'alert-demand');
+            mostrarFinal('🚨', 'FINAL INCULPADO: ¡Los Animatrónicos tenían cuerpos! La policía te arrestó.', 'inculpado');
+            return; 
+        
+        } else if (data.premium) {
+             if (!game.infiniteMoney) game.dinero -= costo;
+             
+             // LÓGICA DE SALVACIÓN POR BANCARROTA
+             if (!game.infiniteMoney && game.dinero < 0) {
+                 const deficit = Math.abs(game.dinero);
+                 game.dinero = 1000.00; 
+                 adjustCordura(-10, "Deuda enorme por préstamo de activos");
+                 addLog(`💸 SALVACIÓN: ¡La inversión de $20,000 actuó como garantía! Obtuviste un préstamo de $${deficit.toFixed(2)} que te deja en $1000.`, 'alert-warning');
+             }
+             
+             game.reputacion = Math.min(100, game.reputacion + data.reputacion_add);
+             game.riesgo = Math.max(0, game.riesgo + data.riesgo_add);
+             game.activos += 1;
+             game.activosComprados += 1;
+             game.itemsComprados[itemKey] = true;
+             game.hasPremiumAnimatronics = true; 
+             addLog(`COMPRA ÉPICA: ¡Compraste ${itemKey}! Rep: +${data.reputacion_add}. ¡$5000 diarios asegurados!`, 'alert-success');
+             game.premium_cooldown = -1; 
+        
+        } else if (type === 'sponsor') {
+            if (game.reputacion < data.reputacion_req) {
+                addLog(`ERROR: Necesitas ${data.reputacion_req}% de reputación para ${itemKey}.`, 'alert-error');
+                return;
+            }
+            if (!game.infiniteMoney) game.dinero -= costo;
+            game.reputacion = Math.min(100, game.reputacion + (data.reputacion_add || 0));
+            game.riesgo = Math.max(0, game.riesgo + data.riesgo_add);
+            game.sponsors += 1;
+            game.dinero += data.dinero_add;
+            addLog(`PATROCINIO: ¡Contrato con ${itemKey}! Ingreso +$${data.dinero_add}.`, 'alert-success');
+        
+        } else if (type === 'personal') {
+            if (!game.infiniteMoney) game.dinero -= costo;
+            adjustCordura(data.cordura_add, `Gasto personal en ${itemKey}`);
+            game.itemsComprados[`personal_${itemKey}`] = game.dia; 
+            addLog(`GASTO PERSONAL: ${itemKey} comprado. Cordura +${data.cordura_add}.`, 'alert-success');
+
+        } else { // Ítems normales
+            if (!game.infiniteMoney) game.dinero -= costo;
+            game.reputacion = Math.min(100, game.reputacion + (data.reputacion_add || 0));
+            game.riesgo = Math.max(0, game.riesgo + data.riesgo_add);
+            game.activos += 1;
+            game.activosComprados += 1;
+            game.itemsComprados[itemKey] = true;
+            addLog(`COMPRA: Añadido ${itemKey}. Rep: +${data.reputacion_add || 0}.`, 'alert-success');
+        }
+
+        updateStats();
+        setupShop();
+    }
+
+    function calcularGastoFamiliar() {
+        // Genera un número aleatorio entre 0 y 1
+        const r = Math.random();
+        
+        let gasto;
+        
+        // 70% de probabilidad de que el gasto sea bajo (cercano a GASTO_FAMILIAR_MIN)
+        if (r < 0.7) {
+            // Entre GASTO_FAMILIAR_MIN y un punto medio
+            gasto = GASTO_FAMILIAR_MIN + (Math.random() * (GASTO_FAMILIAR_MAX * 0.4 - GASTO_FAMILIAR_MIN)); 
+            gasto = Math.min(gasto, 60); // Asegura que el 70% de las veces no pase de 60
+        } else {
+            // 30% de probabilidad de que el gasto sea alto (entre 60 y GASTO_FAMILIAR_MAX)
+            gasto = (GASTO_FAMILIAR_MAX * 0.6) + (Math.random() * (GASTO_FAMILIAR_MAX - GASTO_FAMILIAR_MAX * 0.6));
+            gasto = Math.max(gasto, 61); // Asegura que el 30% de las veces sea más de 60
+        }
+        
+        // Asegurar que esté dentro del rango [GASTO_FAMILIAR_MIN, GASTO_FAMILIAR_MAX]
+        return Math.max(GASTO_FAMILIAR_MIN, Math.min(GASTO_FAMILIAR_MAX, gasto));
+    }
+
+
+    function faseDia() { 
+        if (game.reputacion < 15) {
+            addLog("GESTIÓN: Reputación muy baja. Ganancia CERO.", 'alert-error');
+            if (game.infiniteMoney) return; 
+        }
+        
+        if (game.hasGuard) {
+            game.reputacion = Math.min(100, game.reputacion + GUARDIA_SEGURIDAD.reputacion_add_per_day);
+            addLog(`GUARDIA: Reputación diaria +${GUARDIA_SEGURIDAD.reputacion_add_per_day}% por seguridad activa.`, 'alert-success');
+        }
+        
+        // Bonus de cordura cada 30 días de Hermanas Perrunas
+        if (game.hasPerrunas && game.dia % HERMANAS_PERRUNAS.cordura_boost_days === 0 && game.dia !== 0) {
+             adjustCordura(HERMANAS_PERRUNAS.cordura_boost_amount, "Hermanas Perrunas (Aniversario)");
+             addLog(`¡ANIVERSARIO PERRUNO! Cordura +${HERMANAS_PERRUNAS.cordura_boost_amount} gracias a las parlanchinas.`, 'alert-success');
+        }
+
+        // --- CÁLCULO DE INGRESOS ---
+        let dailyBonus = 0;
+        if (game.hasPremiumAnimatronics) {
+            dailyBonus = 5000;
+            addLog(`BONO PREMIUM: Recibes +$${dailyBonus} por el Grupo de Animatrónicos Premium.`, 'alert-success');
+        }
+        
+        const gananciaBase = 50 + (game.sponsors * 5) + dailyBonus; 
+        const gananciaReputacion = game.reputacion * 2.5; 
+        let gananciaTotal = gananciaBase + gananciaReputacion;
+        
+        const rivalImpact = game.rivalry * 0.5;
+        gananciaTotal = Math.max(0, gananciaTotal - rivalImpact);
+        
+        // --- CÁLCULO DE GASTOS FIJOS ---
+        const mantenimiento = 20 + (game.activos * 5) + (game.sponsors * 2);
+        const costoLegal = game.demandas_activas * 75; 
+        
+        const gastosFamiliares = calcularGastoFamiliar(); 
+        
+        let gastosFijosTotal = mantenimiento + costoLegal + gastosFamiliares;
+        
+        if (!game.infiniteMoney) {
+            game.dinero += gananciaTotal - gastosFijosTotal;
+        }
+        
+        addLog(`GASTOS FIJOS: Familia (Volátil): -$${gastosFamiliares.toFixed(2)}. Mantenimiento: -$${mantenimiento.toFixed(2)}. Legal: -$${costoLegal.toFixed(2)}.`);
+        addLog(`DÍA: Recaudación $${gananciaTotal.toFixed(2)}. Balance Neto: $${(gananciaTotal - gastosFijosTotal).toFixed(2)}.`);
+        
+        if (!game.infiniteMoney && game.dinero < 0) {
+            adjustCordura(-15, "Bancarrota parcial (déficit de día)");
+        }
+    }
+
+    function faseNoche() { 
+        // 1. Peligro y Accidentes
+        const probFallo = game.riesgo * 1.5; 
+        if (Math.random() * 100 < probFallo) {
+            const impactoFinanciero = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
+            if (!game.infiniteMoney) game.dinero -= impactoFinanciero;
+            game.reputacion = Math.max(10, game.reputacion - 10);
+            game.riesgo = Math.max(0, game.riesgo - 10); 
+            game.accidentes_historicos += 1;
+            adjustCordura(-10, "Accidente en el local");
+            addLog(`PELIGRO: ¡Fallo de seguridad! ACCIDENTE REGISTRADO. Costo: -$${impactoFinanciero.toFixed(2)}`, 'alert-error');
+        } else {
+            game.riesgo = Math.min(100, game.riesgo + 2); 
+            addLog("NOCHE: Tranquila. El riesgo general sube un poco.");
+        }
+        
+        // 2. Demandas
+        let baseProbDemanda;
+        
+        // --- LÓGICA DE PROBABILIDAD DE DEMANDA ALTA (Ajuste) ---
+        if (game.dia >= DIA_DEMANDA_ALTA) {
+            // Probabilidad alta fija del 70% si ya pasamos el día 20
+            baseProbDemanda = PROB_DEMANDA_ALTA;
+            addLog(`¡ALERTA! Probabilidad base de demanda del ${baseProbDemanda}% activada (Día ${DIA_DEMANDA_ALTA}+).`, 'alert-demand');
+        } else {
+            // Probabilidad normal basada en el riesgo
+            baseProbDemanda = game.riesgo * 0.75; 
+        }
+
+        const probDemandaFinal = baseProbDemanda;
+
+        if (Math.random() * 100 < probDemandaFinal && game.demandas_activas < 3) {
+            game.demandas_activas += 1;
+            game.reputacion = Math.max(10, game.reputacion - 5);
+            // Pérdida de cordura por demanda (5)
+            adjustCordura(-5, "Nueva demanda"); 
+            addLog(`📢 ¡NUEVA DEMANDA! El alto riesgo atrajo problemas legales. Total: ${game.demandas_activas}`, 'alert-demand');
+        }
+
+        if (game.demandas_activas > 0 && game.riesgo < 15 && Math.random() * 100 < 20) {
+            game.demandas_activas -= 1;
+            addLog(`JURÍDICO: ¡Una demanda fue resuelta automáticamente y favorablemente! Total: ${game.demandas_activas}`, 'alert-warning');
+        }
+        
+        // 3. Enfermedad Familiar
+        if (Math.random() * 100 < PROB_ENFERMEDAD && !game.illnessActive) {
+            game.illnessActive = true;
+            game.illnessCost = COSTO_CURACION_BASE + Math.floor(Math.random() * 500);
+            addLog(`🚨 ¡CRISIS FAMILIAR! Un familiar enfermó. Costo: $${game.illnessCost.toFixed(2)}. ¡Debes actuar en la siguiente fase de compra!`, 'alert-demand');
+        }
+        
+        // 4. Rivalidad y Cooldowns
+        if (game.dia % 30 === 0) { 
+            game.rivalry = Math.min(100, game.rivalry + 10 - Math.floor(game.reputacion / 10));
+            addLog(`COMPETENCIA: La rivalidad aumenta al ${game.rivalry}%.`);
+        }
+        
+        if (game.premium_cooldown > 0) {
+            game.premium_cooldown--;
+        }
+    }
+    
+    // --- LÓGICA DE TIENDA DINÁMICA y ROTACIÓN ---
+    
+    function setupShop() {
+        shopItemsDiv.innerHTML = '';
+        sponsorItemsDiv.innerHTML = '';
+        persistentShopDiv.innerHTML = '';
+        personalShopDiv.innerHTML = ''; 
+
+        // 1. GASTOS PERSONALES (CORDURA)
+        const allCorduraKeys = Object.keys(CORDURA_ITEMS);
+        const dailyCorduraItems = randomSelect(allCorduraKeys, 1, 3);
+        
+        let itemsAvailablePersonal = false;
+        
+        dailyCorduraItems.forEach(itemKey => {
+            const data = CORDURA_ITEMS[itemKey];
+            if (game.itemsComprados[`personal_${itemKey}`] !== game.dia) { 
+                itemsAvailablePersonal = true;
+                const card = D.createElement('div');
+                card.className = 'item-card personal-item';
+                card.innerHTML = `
+                    <div>
+                        <strong>🧘 ${itemKey}</strong> | Costo: $${data.costo} | Cordura: +${data.cordura_add}
+                        <br><small style="color: #00ffcc; font-weight: bold;">Compra Única Diaria</small>
+                    </div>
+                    <button onclick="faseCompra('${itemKey}', 'personal')">Comprar</button>
+                `;
+                personalShopDiv.appendChild(card);
+            }
+        });
+        
+        if (!itemsAvailablePersonal) {
+            personalShopDiv.innerHTML = '<p style="color: #7f8c8d;">Recargaste tu cordura por hoy.</p>';
+        }
+
+
+        // 2. Seguridad y Control (Permanente)
+
+        let itemsAvailableSecurity = false;
+
+        // Hermanas Perrunas
+        if (!game.hasPerrunas) {
+            itemsAvailableSecurity = true;
+            const data = HERMANAS_PERRUNAS;
+            const card = D.createElement('div');
+            card.className = 'item-card perruna-card';
+            card.innerHTML = `
+                <div>
+                    <strong>🐶 Hermanas Perrunas (Parlanchinas)</strong><br>
+                    Costo: $${data.costo} | Beneficio: **80% de chance de ganar juicios** + **Cordura +100 cada 30 días.**
+                </div>
+                <button onclick="faseCompra('${data.key}', 'perrunas')">ADQUIRIR</button>
+            `;
+            persistentShopDiv.appendChild(card);
+        }
+
+        // Guardia de Seguridad
+        if (!game.hasGuard) {
+            itemsAvailableSecurity = true;
+            const data = GUARDIA_SEGURIDAD;
+            const card = D.createElement('div');
+            card.className = 'item-card persistent-card';
+            card.innerHTML = `
+                <div>
+                    <strong>🚨 ${data.key} (Compra Única)</strong><br>
+                    Costo: $${data.costo} | Beneficio: Rep. Diaria +${data.reputacion_add_per_day} | Riesgo -10% | Chance Demanda +${data.win_chance_add}%
+                </div>
+                <button onclick="faseCompra('${data.key}', 'guard')">Contratar</button>
+            `;
+            persistentShopDiv.appendChild(card);
+        }
+        
+        // Mensaje cuando ya están comprados
+        if (!itemsAvailableSecurity) {
+            persistentShopDiv.innerHTML = '<p style="color: #ff9800; font-weight: bold;">🛡️ Activos de seguridad permanentes adquiridos. (Guardia y Perrunas activas).</p>';
+        }
+
+
+        // 3. Artículos de Rotación Diaria (Activos de Negocio)
+        const allRotativeKeys = Object.keys(CATALOGO_BASE).filter(key => CATALOGO_BASE[key].rotativo && !game.itemsComprados[key]);
+        const dailyItems = randomSelect(allRotativeKeys, 1, 2);
+        
+        if (game.premium_cooldown === 0 && !game.itemsComprados['Grupo de Animatrónicos Premium']) {
+            dailyItems.push('Grupo de Animatrónicos Premium');
+        }
+        
+        if (dailyItems.length === 0) {
+            shopItemsDiv.innerHTML = '<p style="color: #7f8c8d;">El inventario de artículos únicos se ha agotado por hoy.</p>';
+        }
+
+
+        dailyItems.forEach(itemKey => {
+            const data = CATALOGO_BASE[itemKey];
+            const card = D.createElement('div');
+            card.className = 'item-card';
+
+            if (data.premium) {
+                card.className += ' premium-item';
+                card.innerHTML = `
+                    <div>
+                        <strong>🤖 ${itemKey}</strong> | Costo: $${data.costo} | Rep: +${data.reputacion_add} | Riesgo: ${data.riesgo_add}
+                        <br><small style="color: gold; font-weight: bold;">¡BONO DIARIO: +$5000! (Salvación de Bancarrota por 1 día)</small>
+                    </div>
+                    <button onclick="faseCompra('${itemKey}', 'shop')">COMPRAR (EPIC)</button>
+                `;
+            } else if (data.final_secreto) {
+                card.className += ' trap-item';
+                card.innerHTML = `
+                    <div>
+                        <strong>💀 ${itemKey}</strong> | Costo: $${data.costo} | Rep: ${data.reputacion_add} | Riesgo: ${data.riesgo_add}
+                        <br><small style="color: #ff4500;">¡MUY BARATO!</small>
+                    </div>
+                    <button onclick="faseCompra('${itemKey}', 'shop')">COMPRAR YA</button>
+                `;
+            } 
+            else {
+                card.innerHTML = `
+                    <div>
+                        <strong>${itemKey}</strong> | Costo: $${data.costo} | Rep: +${data.reputacion_add || 0} | Riesgo: ${data.riesgo_add}
+                    </div>
+                    <button onclick="faseCompra('${itemKey}', 'shop')">Comprar</button>
+                `;
+            }
+            shopItemsDiv.appendChild(card);
+        });
+        
+        // 4. Patrocinios
+        const availableSponsors = Object.keys(SPONSORS_BASE);
+        const dailySponsors = randomSelect(availableSponsors, 1, 2);
+        
+        sponsorItemsDiv.innerHTML = '';
+        dailySponsors.forEach(sponsorKey => {
+            const data = SPONSORS_BASE[sponsorKey];
+            const card = D.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+                <div>
+                    <strong>🤝 ${sponsorKey}</strong> | Tarifa: $${data.costo} | Req. Rep: ${data.reputacion_req}% | ${data.text}
+                </div>
+                <button onclick="faseCompra('${sponsorKey}', 'sponsor')">Patrocinar</button>
+            `;
+            sponsorItemsDiv.appendChild(card);
+        });
+        
+        addLog(`INVENTARIO: ${allRotativeKeys.length} ítems únicos restantes.`, 'alert-warning');
+    }
+    
+    function randomSelect(arr, minCount, maxCount) {
+        const count = Math.floor(Math.random() * (maxCount - minCount + 1)) + minCount;
+        const shuffled = arr.sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    }
+
+    // --- MANEJO DE FINALES Y GAME OVER ---
+
+    function mostrarFinal(emoji, message, finalKey) {
+        saveFinal(finalKey);
+        illnessModule.style.display = 'none';
+        lawsuitModule.style.display = 'none';
+        
+        D.getElementById('final-emoji').textContent = emoji;
+        D.getElementById('final-message').textContent = message;
+        D.getElementById('final-text').textContent = `Día de término: ${game.dia}.`;
+        gameOverScreen.style.display = 'block';
+        nextDayBtn.disabled = true;
+        game.gameOver = true; 
+    }
+
+    function checkFinal() {
+        if (game.gameOver) return true;
+        
+        if (!game.infiniteMoney) {
+            
+            // Final Hombre Morado (Cordura 0)
+            if (game.cordura <= 0) {
+                mostrarFinal('🟣', '¡FINAL HOMBRE MORADO! Te volviste loco, la presión te consumió y te convertiste en la leyenda de Tralalelo\'s.', 'purple_guy');
+                return true;
+            }
+            
+            // Final Bancarrota
+            if (game.dinero < 0) { 
+                mostrarFinal('😢', '¡PERDISTE POR BANCARROTA!', 'bankrupt');
+                return true;
+            }
+        }
+        
+        // Finales de 360 días
+        if (game.dia >= MAX_DAYS) {
+            
+            if (game.reputacion > 90 && game.dinero >= 10000) {
+                mostrarFinal('👑', '¡FINAL MAESTRO! Eres el Tycoon definitivo de Pizzas.', 'master');
+                return true;
+            }
+            
+            if (game.riesgo > 75 && game.activos > 5) {
+                mostrarFinal('🔥', '¡FINAL ARRIESGADO! Sobreviviste al borde del colapso.', 'risk_taker');
+                return true;
+            }
+
+            if (game.rivalry < 10 && game.sponsors === 0) {
+                mostrarFinal('🌳', 'FINAL SOLITARIO: Un negocio pequeño y tranquilo, pero sin apoyo.', 'recluse');
+                return true;
+            }
+            
+            if (game.rivalry > 85) {
+                mostrarFinal('⚔️', 'FINAL DERROTA RIVAL: Tu competencia colapsó bajo la presión que creaste.', 'rival_defeat');
+                return true;
+            }
+
+            if (game.demandas_activas === 0 && game.accidentes_historicos === 0) {
+                mostrarFinal('🕊️', 'FINAL PACIFISTA: ¡Cero demandas y cero accidentes!', 'pacifista');
+                return true;
+            }
+            
+            if (game.activosComprados === 0) {
+                mostrarFinal('😶', 'FINAL MEDIOCRE: Sobreviviste 360 días sin invertir.', 'mediocre');
+                return true;
+            } 
+            
+            else {
+                mostrarFinal('🏆', '¡FINAL VICTORIA! Completaste la gestión de 360 días.', 'win');
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    function nextDayHandler() {
+        if (game.gameOver) return;
+        
+        // El jugador debe manejar la enfermedad o demanda antes de avanzar
+        if (game.illnessActive) {
+            openIllnessModule();
+            return;
+        }
+        
+        if (game.demandas_activas > 0) {
+            openLawsuitModule();
+            return;
+        }
+        
+        game.dia++;
+        addLog("--- INICIANDO NUEVA RONDA ---");
+
+        faseDia();
+        faseNoche();
+        
+        if (game.premium_cooldown === 0 && !game.itemsComprados['Grupo de Animatrónicos Premium']) {
+            game.premium_cooldown = 15; 
+            addLog("El Grupo de Animatrónicos Premium se ha retirado de la venta por ahora.", 'alert-warning');
+        }
+
+        setupShop(); 
+        updateStats();
+
+        if (checkFinal()) {
+            // Se maneja en mostrarFinal
+        } else {
+            nextDayBtn.textContent = `Avanzar al Día ${game.dia + 1}`;
+        }
+        
+        logFeed.scrollTop = 0;
+    }
+
+    // --- INICIALIZACIÓN ---
+    
+    function setupGame() {
+        loadFinals();
+        checkInfiniteMode(); 
+
+        setupShop();
+        nextDayBtn.addEventListener('click', nextDayHandler);
+        
+        // Asignación del evento keydown (Truco 'H')
+        D.addEventListener('keydown', (e) => {
+            if ((e.key === 'h' || e.key === 'H') && !game.gameOver) {
+                openCheatModule();
+            }
+        });
+        
+        updateStats();
+        
+        if (game.dia === 0) {
+            if (game.infiniteMoney) {
+                addLog("MODO INFINITO ACTIVO: ¡Felicidades! Usa 'H' para trucos.", 'alert-success');
+            } else {
+                addLog("Bienvenido a Tralalelo's Tycoon. ¡Inicias con $2000! ¡Contrata un Guardia de Seguridad cuanto antes!", 'alert-warning');
+            }
+        }
+    }
+
+</script>
+
+</body>
+</html>
