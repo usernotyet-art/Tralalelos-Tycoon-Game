@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tralalelo's Tycoon - Con Personaje Dinámico</title>
+    <title>Tralalelo's Tycoon - Con Rivalidad y Crisis</title>
     <style>
         /* Estilos generales */
         body {
@@ -79,7 +79,7 @@
         #next-day-btn:hover:not(:disabled) { background-color: #cc3700; }
         #next-day-btn:disabled { background-color: #555; cursor: not-allowed; }
 
-        /* Estilos de Tienda */
+        /* Estilos de Tienda y Rivalidad */
         .item-card {
             background-color: #383838;
             padding: 15px;
@@ -97,6 +97,7 @@
             border: none;
             border-radius: 3px;
             cursor: pointer;
+            margin-left: 5px;
         }
         .item-card button:hover {
             background-color: #cc3700;
@@ -104,6 +105,10 @@
         .premium-item { border-left: 5px solid gold; }
         .trap-item { border-left: 5px solid purple; }
         .personal-item { border-left: 5px solid #00ffcc; }
+        .rival-item { border-left: 5px solid #00bfff; }
+        .rival-item button.buy { background-color: #27ae60; }
+        .rival-item button.sue { background-color: #8e44ad; }
+        .rival-item button.sue:hover { background-color: #6c3483; }
 
         
         /* Estilos del Mánager (Personaje de Cordura) */
@@ -233,7 +238,7 @@
     <div class="stats-panel panel">
         <h2>📊 Estadísticas</h2>
         <div class="stat-item">Día Actual: <span id="stat-day">0</span></div>
-        <div class="stat-item">Dinero: <span id="stat-money">$2000.00</span></div>
+        <div class="stat-item">Dinero: <span id="stat-money">$10000.00</span></div>
         <div class="stat-item">Reputación: <span id="stat-reputation">10%</span></div>
         <div class="stat-item">Riesgo de Noche: <span id="stat-risk">0%</span></div>
         <div class="stat-item" style="font-weight: bold; color: yellow;">Demandas Activas: <span id="stat-lawsuits">0</span></div>
@@ -262,9 +267,12 @@
         <button onclick="reiniciarFinales()" style="margin-top: 15px; background: #600; color: white; border: none; padding: 5px;">Reiniciar Progreso de Finales</button>
     </div>
 
-    <!-- Panel de Compras -->
+    <!-- Panel de Compras y Rivalidad -->
     <div class="shop-panel panel">
         <h2>🛒 Tienda (Fase de Compra - Cambia Diariamente)</h2>
+        
+        <h2>⚔️ Rivalidad y Adquisiciones</h2>
+        <div id="rivalry-items"></div>
         
         <h2>🧘 Gastos Personales (Cordura)</h2>
         <div id="personal-shop-items"></div>
@@ -283,9 +291,20 @@
 <script>
     const MAX_DAYS = 360;
     
+    // --- NUEVOS COSTOS Y PROBABILIDADES DE RIVALIDAD ---
+    const RIVALRY_COST_BUY = 20000;
+    const RIVALRY_COST_SUE = 30000;
+    const RIVALRY_WIN_CHANCE = 99; // 99% de chance de ganar demanda rival
+    const RIVALRY_SUE_CASH = 40000;
+    const RIVALRY_BUY_DAILY_MONEY = 10000;
+    const RIVALRY_BUY_DAILY_REPUTATION = 5; // Ajustado de 50 a 5
+    const RIVALRY_BUY_DAILY_CORDURA = 5;    // Ajustado de 50 a 5
+    const COUNTER_SUE_FIXED_WIN = 70; // 70% de chance de ganar contra-demanda
+
+    
     // --- ESTADO INICIAL DEL JUEGO ---
     let game = {
-        dinero: 2000.00, 
+        dinero: 10000.00, // Dinero inicial actualizado
         riesgo: 0,
         reputacion: 10,
         activos: 0,
@@ -307,6 +326,10 @@
         
         premium_cooldown: 0, 
         h_cheat_used_today: false,
+        
+        // Nuevos estados para la Rivalidad
+        rivalsOwned: [],
+        rivalsDestroyed: [],
         
         finales: {
             mediocre: false,
@@ -380,6 +403,13 @@
         'App de Delivery Rápido': { costo: 2000, reputacion_req: 60, dinero_add: 150, riesgo_add: 15, text: "Grandes ingresos, pero mayor desgaste y riesgo." },
         'Unicornio de Juguetes': { costo: 200, reputacion_req: 10, dinero_add: 10, riesgo_add: 0, text: "Patrocinio estable y pequeño." },
     };
+    
+    const RIVALRY_COMPANIES = {
+        'Pizza Planet X': { initialRivalry: 20 },
+        'Arcade King': { initialRivalry: 15 },
+        'Freddy’s knock-off': { initialRivalry: 10 },
+        'Calamardo’s Palace': { initialRivalry: 5 },
+    };
 
 
     // --- Elementos DOM ---
@@ -402,6 +432,7 @@
     const persistentShopDiv = doc.getElementById('persistent-shop-items');
     const sponsorItemsDiv = doc.getElementById('sponsor-items');
     const personalShopDiv = doc.getElementById('personal-shop-items'); 
+    const rivalryItemsDiv = doc.getElementById('rivalry-items'); // Nuevo Panel
     const nextDayBtn = doc.getElementById('next-day-btn');
     const gameOverScreen = doc.getElementById('game-over-screen');
     const lawsuitModule = doc.getElementById('lawsuit-module');
@@ -429,7 +460,7 @@
         logFeed.prepend(p);
     }
 
-    // --- Funciones de Guardado y UI ---
+    // --- Funciones de Guardado y UI (sin cambios significativos en la estructura) ---
     
     function loadFinals() {
         const savedFinals = localStorage.getItem('tralaleloFinals');
@@ -568,7 +599,6 @@
         illnessModule.style.display = 'none';
         doc.getElementById('lawsuit-outcome').textContent = '';
         doc.getElementById('illness-outcome').textContent = '';
-        // No se re-habilita el botón aquí, sino al final de nextDayHandler para asegurar que el avance continúe.
     }
 
     function openLawsuitModule() {
@@ -601,9 +631,8 @@
         if (game.dinero >= COSTO_CONTRA_DEMANDA) {
             game.dinero -= COSTO_CONTRA_DEMANDA;
             
-            let winChance = 20; 
-            if (game.hasPerrunas) winChance = HERMANAS_PERRUNAS.legal_win_chance;
-            if (game.hasGuard) winChance += GUARDIA_SEGURIDAD.win_chance_add;
+            // Usar la probabilidad de ganar FIJA de 70% solicitada por el usuario
+            const winChance = COUNTER_SUE_FIXED_WIN; 
             
             const result = Math.random() * 100;
             
@@ -612,7 +641,7 @@
                 game.demandas_activas = Math.max(0, game.demandas_activas - 1);
                 game.reputacion = Math.min(100, game.reputacion + 10);
                 game.rivalry = Math.max(0, game.rivalry - 5);
-                addLog(`DEMANDA: ¡GANASTE! Reputación +10 y rivalidad -5.`, 'alert-success');
+                addLog(`DEMANDA: ¡GANASTE! (Prob. ${winChance}%) Reputación +10 y rivalidad -5.`, 'alert-success');
                 closeModules();
                 updateStats();
                 nextDayHandler();
@@ -621,7 +650,7 @@
                 game.demandas_activas = Math.max(0, game.demandas_activas - 1);
                 game.reputacion = Math.max(0, game.reputacion - 20);
                 game.dinero = 0; // Penalización severa
-                addLog(`DEMANDA: ¡PERDISTE! Reputación -20 y PERDISTE TODO TU DINERO.`, 'alert-error');
+                addLog(`DEMANDA: ¡PERDISTE! (Prob. ${winChance}%) Reputación -20 y PERDISTE TODO TU DINERO.`, 'alert-error');
                 
                 doc.getElementById('lawsuit-outcome').textContent = "¡PERDISTE! Dinero CERO y Reputación -20.";
                 setTimeout(() => {
@@ -636,7 +665,7 @@
         }
     };
     
-    // Handlers para el Módulo de Enfermedad
+    // Handlers para el Módulo de Enfermedad (sin cambios)
     doc.getElementById('pay-illness-btn').onclick = () => {
         if (game.dinero >= game.illnessCost) {
             game.dinero -= game.illnessCost;
@@ -677,7 +706,48 @@
         }, 3000);
     };
 
-    // --- LÓGICA DE COMPRA ---
+    // --- LÓGICA DE RIVALIDAD ---
+    
+    function handleRivalAction(companyName, action) {
+        if (game.gameOver) return;
+        
+        if (action === 'buy') {
+            if (!game.infiniteMoney && game.dinero < RIVALRY_COST_BUY) {
+                addLog(`ERROR: No tienes $${RIVALRY_COST_BUY} para comprar ${companyName}.`, 'alert-error');
+                return;
+            }
+            if (!game.infiniteMoney) game.dinero -= RIVALRY_COST_BUY;
+            
+            game.rivalsOwned.push(companyName);
+            game.rivalry = Math.max(0, game.rivalry - RIVALRY_COMPANIES[companyName].initialRivalry);
+            addLog(`ADQUISICIÓN: ¡Compraste ${companyName}! Ingresos y Moral Diaria Aumentarán.`, 'alert-success');
+            
+        } else if (action === 'sue') {
+            if (!game.infiniteMoney && game.dinero < RIVALRY_COST_SUE) {
+                addLog(`ERROR: No tienes $${RIVALRY_COST_SUE} para demandar a ${companyName}.`, 'alert-error');
+                return;
+            }
+            if (!game.infiniteMoney) game.dinero -= RIVALRY_COST_SUE;
+            
+            const win = Math.random() * 100 < RIVALRY_WIN_CHANCE;
+            
+            if (win) {
+                game.rivalsDestroyed.push(companyName);
+                game.dinero += RIVALRY_SUE_CASH;
+                game.rivalry = Math.max(0, game.rivalry - 50);
+                addLog(`VICTORIA LEGAL: ¡Quebraste a ${companyName}! Ganaste $${RIVALRY_SUE_CASH} y Rivalidad -50.`, 'alert-success');
+            } else {
+                game.rivalry = Math.min(100, game.rivalry + 20);
+                game.reputacion = Math.max(0, game.reputacion - 10);
+                addLog(`DERROTA LEGAL: Perdiste la demanda contra ${companyName}. Rivalidad +20, Reputación -10.`, 'alert-error');
+            }
+        }
+        
+        updateStats();
+        setupShop(); // Actualiza el panel de rivalidad
+    }
+
+    // --- LÓGICA DE COMPRA (sin cambios significativos) ---
 
     function faseCompra(itemKey, type) {
         
@@ -789,6 +859,10 @@
         sponsorItemsDiv.innerHTML = '';
         persistentShopDiv.innerHTML = '';
         personalShopDiv.innerHTML = ''; 
+        rivalryItemsDiv.innerHTML = ''; 
+        
+        // 0. Panel de Rivalidad
+        setupRivalryPanel();
 
         // 1. GASTOS PERSONALES (CORDURA)
         const allCorduraKeys = Object.keys(CORDURA_ITEMS);
@@ -830,7 +904,7 @@
             card.innerHTML = `
                 <div>
                     <strong>🐶 Hermanas Perrunas (Parlanchinas)</strong><br>
-                    Costo: $${data.costo} | Beneficio: **80% de chance de ganar juicios** + **Cordura +100 cada 30 días.**
+                    Costo: $${data.costo} | Beneficio: ${data.legal_win_chance}% chance de ganar juicios (ANTES) + Cordura +100 cada 30 días.
                 </div>
                 <button onclick="faseCompra('${data.key}', 'perrunas')">ADQUIRIR</button>
             `;
@@ -931,23 +1005,71 @@
         addLog(`INVENTARIO: ${allRotativeKeys.length} ítems únicos restantes.`, 'alert-warning');
     }
     
+    // Nueva función para el panel de rivalidad
+    function setupRivalryPanel() {
+        rivalryItemsDiv.innerHTML = '';
+
+        const availableRivals = Object.keys(RIVALRY_COMPANIES).filter(
+            name => !game.rivalsOwned.includes(name) && !game.rivalsDestroyed.includes(name)
+        );
+
+        if (availableRivals.length === 0) {
+            rivalryItemsDiv.innerHTML = '<p style="color: #00bfff; font-weight: bold;">Todas las compañías rivales han sido compradas o destruidas.</p>';
+            return;
+        }
+
+        availableRivals.forEach(name => {
+            const data = RIVALRY_COMPANIES[name];
+            const card = doc.createElement('div');
+            card.className = 'item-card rival-item';
+            
+            card.innerHTML = `
+                <div style="flex-grow: 1;">
+                    <strong>⚔️ ${name}</strong> | Rivalidad Base: ${data.initialRivalry}%
+                    <br><small>
+                        <span style="color: #27ae60;">Comprar: </span>\$${RIVALRY_COST_BUY} (Gana \$${RIVALRY_BUY_DAILY_MONEY} diarios + Rep/Cordura).
+                        <span style="color: #8e44ad;"> | Demandar: </span>\$${RIVALRY_COST_SUE} (Gana \$${RIVALRY_SUE_CASH} y -50 Rivalidad).
+                    </small>
+                </div>
+                <div>
+                    <button class="buy" onclick="handleRivalAction('${name}', 'buy')">COMPRAR</button>
+                    <button class="sue" onclick="handleRivalAction('${name}', 'sue')">DEMANDAR</button>
+                </div>
+            `;
+            rivalryItemsDiv.appendChild(card);
+        });
+    }
+
     // --- FASES DEL JUEGO ---
     
     function faseDia() {
         // Ingresos base + sponsors
         let ingresos = Math.max(100, game.reputacion * 10);
         
+        // Bono de Animatrónicos Premium
+        if (game.hasPremiumAnimatronics) {
+            ingresos += 5000;
+        }
+
+        // BONO DIARIO DE RIVALES COMPRADOS
+        if (game.rivalsOwned.length > 0) {
+            const rivalBonusMoney = game.rivalsOwned.length * RIVALRY_BUY_DAILY_MONEY;
+            const rivalBonusRep = game.rivalsOwned.length * RIVALRY_BUY_DAILY_REPUTATION;
+            const rivalBonusCordura = game.rivalsOwned.length * RIVALRY_BUY_DAILY_CORDURA;
+
+            ingresos += rivalBonusMoney;
+            game.reputacion = Math.min(100, game.reputacion + rivalBonusRep);
+            adjustCordura(rivalBonusCordura, "Adquisición de rivales (Bonos diarios)");
+            
+            addLog(`BONO RIVAL: Recibiste +$${rivalBonusMoney} de rivales adquiridos. Rep +${rivalBonusRep}, Cordura +${rivalBonusCordura}.`, 'alert-success');
+        }
+
         Object.keys(SPONSORS_BASE).forEach(key => {
             if (game.itemsComprados[key]) {
                 ingresos += SPONSORS_BASE[key].dinero_add;
             }
         });
         
-        // Bonus de Animatrónicos Premium
-        if (game.hasPremiumAnimatronics) {
-            ingresos += 5000;
-        }
-
         game.dinero += ingresos;
         addLog(`DIA: Ingresos del día: $${ingresos.toFixed(2)}.`, 'alert-success');
     }
@@ -962,8 +1084,14 @@
         adjustCordura(-1, "Estrés laboral diario");
         
         // Chequeo de Demandas
-        const probBaseDemanda = game.riesgo * 0.5; // Base 50% del riesgo
+        let probBaseDemanda = game.riesgo * 0.5; // Base 50% del riesgo
         let probDemanda = probBaseDemanda;
+        
+        // NUEVO: RIESGO CRÍTICO DE REPUTACIÓN BAJA
+        if (game.reputacion <= 10) {
+            probDemanda += 70; // Aumenta la probabilidad de demanda en 70% si la Reputación es crítica
+            addLog("¡RIESGO CRÍTICO! Reputación en caída libre (<=10%). Peligro de demanda altísimo (+70% base).", 'alert-error');
+        }
         
         if (game.dia >= DIA_DEMANDA_ALTA && game.riesgo >= 30) {
              probDemanda = PROB_DEMANDA_ALTA;
@@ -1141,7 +1269,7 @@
             if (game.infiniteMoney) {
                 addLog("MODO INFINITO ACTIVO: ¡Felicidades! Los trucos están desbloqueados.", 'alert-success');
             } else {
-                addLog("Bienvenido a Tralalelo's Tycoon. ¡Inicias con $2000! ¡Contrata un Guardia de Seguridad cuanto antes! Consejo: Presiona 'H' una vez al día para un impulso de emergencia.", 'alert-warning');
+                addLog("Bienvenido a Tralalelo's Tycoon. ¡Inicias con $10000! ¡Contrata un Guardia de Seguridad cuanto antes! Consejo: Presiona 'H' una vez al día para un impulso de emergencia.", 'alert-warning');
             }
         }
     }
